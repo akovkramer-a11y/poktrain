@@ -44,10 +44,11 @@ const STORAGE_KEYS = {
 };
 
 const TRAINING_FOCUS_OPTIONS = [
-  { id: 'all', label: 'Все ситуации (Разнообразие)' },
+  { id: 'all', label: 'Все руки (Полный баланс)' },
+  { id: 'premium_aces', label: 'Премиум (QQ–AA) и Тузы (AK, AQ, A5s)' },
+  { id: 'pairs_broadway', label: 'Бродвей (KQ, QJ) и средние пары' },
   { id: 'connectors', label: 'Коннекторы и гапперы' },
-  { id: 'bluff_oop', label: 'Блеф и слабая позиция' },
-  { id: 'pairs_broadway', label: 'Карманные пары и бродвей' }
+  { id: 'bluff_oop', label: 'Блеф и слабая позиция' }
 ];
 
 const TABLE_MODES = [
@@ -1876,6 +1877,664 @@ const PROCEDURAL_BLUEPRINTS = [
         }
       ]
     };
+  },
+
+  // 11. ПРЕМИУМ-ПАРЫ QQ / KK / AA В 3-БЕТ БАНКЕ (CO/BTN vs LJ — 4 улицы игры на стек и чтения текстуры)
+  ({ s1, s2, s3, s4, stack, mode, variant }) => {
+    const premPool = [
+      { p: 'Q', f1: 'J', f2: '7', f3: '3', t: '9', r: '2', name: 'Дамы (QQ)' },
+      { p: 'K', f1: 'Q', f2: '8', f3: '4', t: '10', r: '3', name: 'Короли (KK)' },
+      { p: 'A', f1: 'K', f2: '9', f3: '5', t: 'J', r: '2', name: 'Тузы (AA)' }
+    ];
+    const pr = premPool[variant % premPool.length];
+    const heroPos = 'BTN';
+    const villainPos = mode === 'headsup' ? 'BB' : 'LJ';
+    return {
+      focusCategory: 'premium_aces',
+      mode,
+      title: `Премиум в 3-бет банке: ${pr.p}${s1}${pr.p}${s2} на BTN против ${villainPos}`,
+      blindsInfo: `${mode === 'headsup' ? 'Хэдз-ап' : '8-Max'} • Анте 1 ББ • Эфф. стек ${stack} ББ`,
+      effectiveStackStart: stack,
+      heroPos,
+      villainPos,
+      heroCards: [`${pr.p}${s1}`, `${pr.p}${s2}`],
+      streets: [
+        {
+          name: 'Префлоп',
+          board: [],
+          potBeforeAction: 4.7,
+          effectiveStack: stack,
+          villainLastActionBadge: 'Рейз 2.2 ББ',
+          actionHistory: [
+            {
+              street: 'Префлоп',
+              text: `${villainPos} открывается 2.2 ББ → HJ и CO пас. Слово за Hero на BTN (позади SB и BB).`
+            }
+          ],
+          villainActionText: `Регуляр на ${villainPos} открыл 2.2 ББ. У тебя на баттоне премиум-пара ${pr.p}${s1} ${pr.p}${s2}.`,
+          toCall: 2.2,
+          minRaise: 6.0,
+          gtoAction: {
+            type: 'raise',
+            acceptableTypes: ['raise'],
+            minOptimalSize: 6.4,
+            maxOptimalSize: 7.5,
+            optimalTags: ['value_bet', 'spr_icm_control'],
+            trapTags: ['pot_control'],
+            explanation: `С премиум-парой ${pr.p}${pr.p} на баттоне обязателен 3-бет на прямое вэлью в размере 3x (6.6–7.0 ББ), чтобы разогнать банк и изолировать открывшегося игрока в позиции.`,
+            sizingNote: '3-бет на вэлью 6.6–7.0 ББ.'
+          },
+          rangeMatrix: {
+            value: ['AA', 'KK', 'QQ', 'JJ', '1010', 'AKs', 'AQs', 'AKo'],
+            medium: ['99', '88', '77', 'AJs', 'KQs', 'KJs', 'QJs'],
+            draws: ['J10s', '109s', '98s'],
+            bluffs: ['A5s', 'A4s']
+          }
+        },
+        {
+          name: 'Флоп',
+          board: [`${pr.f1}${s1}`, `${pr.f2}${s3}`, `${pr.f3}${s1}`],
+          potBeforeAction: 16.3,
+          effectiveStack: Number((stack - 6.8).toFixed(1)),
+          villainLastActionBadge: 'Чек',
+          actionHistory: [
+            {
+              street: 'Префлоп',
+              text: `${villainPos} рейз 2.2 ББ → Hero (BTN) 3-бет 6.8 ББ → ${villainPos} колл (Банк: 16.3 ББ)`
+            },
+            {
+              street: `Флоп [${pr.f1}${s1} ${pr.f2}${s3} ${pr.f3}${s1}]`,
+              text: `Соперник чекает. У Hero оверпара ${pr.p}${pr.p} с блокером на флеш-дро ${s1}.`
+            }
+          ],
+          villainActionText: `На флопе ${pr.f1}${s1} ${pr.f2}${s3} ${pr.f3}${s1} соперник чекает в банке 16.3 ББ. У тебя оверпара ${pr.p}${pr.p}.`,
+          toCall: 0,
+          minBet: 4.0,
+          gtoAction: {
+            type: 'bet',
+            acceptableTypes: ['bet'],
+            minOptimalSize: 5.5,
+            maxOptimalSize: 9.0,
+            optimalTags: ['value_bet', 'spr_icm_control'],
+            trapTags: ['pot_control'],
+            explanation: `В 3-бет банке с оверпарой ${pr.p}${pr.p} мы ставим контбет ~40–50% банка (6.5–8.0 ББ), добирая со всех топ-пар (${pr.f1}x), карманок младше и флеш-дро соперника.`,
+            sizingNote: 'Контбет на вэлью 6.5–8.0 ББ.'
+          },
+          rangeMatrix: {
+            value: [`${pr.f1}${pr.f1}`, `${pr.f2}${pr.f2}`, `A${pr.f1}s`, `K${pr.f1}s`],
+            medium: [`Q${pr.f1}s`, `J${pr.f1}s`, '1010', '99', '88'],
+            draws: [`A${s1}10${s1}`, `J${s1}10${s1}`, `10${s1}9${s1}`],
+            bluffs: []
+          }
+        },
+        {
+          name: 'Терн',
+          board: [`${pr.f1}${s1}`, `${pr.f2}${s3}`, `${pr.f3}${s1}`, `${pr.t}${s2}`],
+          potBeforeAction: 30.7,
+          effectiveStack: Number((stack - 14.0).toFixed(1)),
+          villainLastActionBadge: 'Чек',
+          actionHistory: [
+            {
+              street: `Флоп [${pr.f1}${s1} ${pr.f2}${s3} ${pr.f3}${s1}]`,
+              text: `${villainPos} чек → Hero (BTN) бет 7.2 ББ → ${villainPos} колл (Банк: 30.7 ББ)`
+            },
+            {
+              street: `Терн [${pr.t}${s2}]`,
+              text: `Флеш не закрылся. В банке 30.7 ББ, эффективный стек ${fmtBB(
+                stack - 14.0
+              )} ББ (SPR < 1). Соперник чекает.`
+            }
+          ],
+          villainActionText: `На терне ${pr.t}${s2} банк вырос до 30.7 ББ, а в стеке осталось ${fmtBB(
+            stack - 14.0
+          )} ББ (SPR < 1). Соперник чекает.`,
+          toCall: 0,
+          minBet: 6.0,
+          gtoAction: {
+            type: 'bet',
+            acceptableTypes: ['bet'],
+            minOptimalSize: Number((stack - 16.0).toFixed(1)),
+            maxOptimalSize: Number((stack - 14.0).toFixed(1)),
+            optimalTags: ['value_bet', 'spr_icm_control'],
+            trapTags: ['pot_control'],
+            explanation: `При SPR < 1 на терне с оверпарой ${pr.p}${pr.p} мы ставим олл-ин! Топ-пары с хорошим кикером и комбо-дро соперника не могут выбросить по шансам банка и оплатят наш стек до выхода страшных карт на ривере.`,
+            sizingNote: 'Олл-ин на терне при SPR < 1.'
+          },
+          rangeMatrix: {
+            value: [`${pr.f1}${pr.f1}`, `${pr.f2}${pr.f2}`, `A${pr.f1}s`, `K${pr.f1}s`],
+            medium: [`Q${pr.f1}s`, '1010'],
+            draws: [`A${s1}10${s1}`, `J${s1}10${s1}`],
+            bluffs: []
+          }
+        },
+        {
+          name: 'Ривер',
+          board: [`${pr.f1}${s1}`, `${pr.f2}${s3}`, `${pr.f3}${s1}`, `${pr.t}${s2}`, `${pr.r}${s4}`],
+          potBeforeAction: 30.7,
+          effectiveStack: Number((stack - 14.0).toFixed(1)),
+          villainLastActionBadge: 'Бет 12.0 ББ',
+          actionHistory: [
+            {
+              street: `Терн [${pr.t}${s2}]`,
+              text: 'Альтернативная ветка (если терн прочекан): Банк 30.7 ББ'
+            },
+            {
+              street: `Ривер [${pr.r}${s4}]`,
+              text: `Все дро промазали. Соперник ставит блок-бет 12.0 ББ.`
+            }
+          ],
+          villainActionText: `На бланковом ривере ${pr.r}${s4} соперник ставит 12.0 ББ. У тебя оверпара ${pr.p}${pr.p}.`,
+          toCall: 12.0,
+          minRaise: Number((stack - 14.0).toFixed(1)),
+          gtoAction: {
+            type: 'raise',
+            acceptableTypes: ['raise', 'call'],
+            minOptimalSize: Number((stack - 16.0).toFixed(1)),
+            maxOptimalSize: Number((stack - 14.0).toFixed(1)),
+            optimalTags: ['value_bet'],
+            trapTags: ['fold_behind'],
+            explanation: `На бланковом ривере наша оверпара ${pr.p}${pr.p} уверенно впереди всех топ-пар соперника, которые решили поставить доборный блок-бет. Добираем пушем (или коллируем при коротком остатке).`,
+            sizingNote: 'Доборный олл-ин (или колл).'
+          },
+          rangeMatrix: {
+            value: [`${pr.f1}${pr.f1}`, `A${pr.f1}s`],
+            medium: [`K${pr.f1}s`, `Q${pr.f1}s`, '1010'],
+            draws: [],
+            bluffs: [`A${s1}10${s1}`]
+          }
+        }
+      ]
+    };
+  },
+
+  // 12. СИЛЬНЫЕ ТУЗЫ AK / AQ (3-БЕТ БАНК: A♠K♦ / A♠Q♣ — Пот-контроль и чтение блокеров)
+  ({ s1, s2, s3, s4, stack, mode, variant }) => {
+    const kic = variant % 2 === 0 ? 'Q' : 'K';
+    const heroPos = 'BTN';
+    const villainPos = mode === 'headsup' ? 'BB' : 'LJ';
+    return {
+      focusCategory: 'premium_aces',
+      mode,
+      title: `Сильный туз в 3-бет банке: A${s1}${kic}${s2} на BTN vs ${villainPos} (Блокеры и SPR)`,
+      blindsInfo: `${mode === 'headsup' ? 'Хэдз-ап' : '8-Max'} • Анте 1 ББ • Эфф. стек ${stack} ББ`,
+      effectiveStackStart: stack,
+      heroPos,
+      villainPos,
+      heroCards: [`A${s1}`, `${kic}${s2}`],
+      streets: [
+        {
+          name: 'Префлоп',
+          board: [],
+          potBeforeAction: 4.7,
+          effectiveStack: stack,
+          villainLastActionBadge: 'Рейз 2.2 ББ',
+          actionHistory: [
+            {
+              street: 'Префлоп',
+              text: `${villainPos} открывается 2.2 ББ → CO пас. Слово за Hero на BTN.`
+            }
+          ],
+          villainActionText: `Регуляр на ${villainPos} открыл 2.2 ББ. У тебя на баттоне сильный бродвей A${s1} ${kic}${s2}.`,
+          toCall: 2.2,
+          minRaise: 6.0,
+          gtoAction: {
+            type: 'raise',
+            acceptableTypes: ['raise'],
+            minOptimalSize: 6.4,
+            maxOptimalSize: 7.4,
+            optimalTags: ['value_bet', 'blockers_factor'],
+            trapTags: ['fold_behind'],
+            explanation: `Разномастные A${kic}o плохо играются в мультипоте через колл (позади сидят блайнды), зато идеально подходят для 3-бета 3x (6.6–7.0 ББ) за счет мощных блокеров на тузов и королей/дам соперника.`,
+            sizingNote: '3-бет в позиции 6.6–7.0 ББ.'
+          },
+          rangeMatrix: {
+            value: ['AA', 'KK', 'QQ', 'JJ', '1010', 'AKs', 'AQs', 'AKo'],
+            medium: ['99', '88', '77', 'AJs', 'A10s', 'KQs', 'KJs', 'QJs'],
+            draws: ['J10s', '109s', '98s'],
+            bluffs: ['A5s', 'KQo']
+          }
+        },
+        {
+          name: 'Флоп',
+          board: [`J${s3}`, `6${s1}`, `3${s4}`],
+          potBeforeAction: 16.5,
+          effectiveStack: Number((stack - 7.0).toFixed(1)),
+          villainLastActionBadge: 'Чек',
+          actionHistory: [
+            {
+              street: 'Префлоп',
+              text: `${villainPos} рейз 2.2 ББ → Hero (BTN) 3-бет 7.0 ББ → ${villainPos} колл (Банк: 16.5 ББ)`
+            },
+            {
+              street: `Флоп [J${s3} 6${s1} 3${s4}]`,
+              text: `Сухой радужный флоп. ${villainPos} чекает. У Hero две оверкарты и лучший туз-хай.`
+            }
+          ],
+          villainActionText: `На сухом флопе J${s3} 6${s1} 3${s4} соперник чекает в банке 16.5 ББ. У тебя A${s1} ${kic}${s2}.`,
+          toCall: 0,
+          minBet: 3.5,
+          gtoAction: {
+            type: 'check',
+            acceptableTypes: ['check', 'bet'],
+            minOptimalSize: 4.0,
+            maxOptimalSize: 5.5,
+            optimalTags: ['pot_control', 'dry_board'],
+            trapTags: ['trap_fold_worse'],
+            explanation: `Твой туз-хай (A${kic}) прямо сейчас доминирует и бьет все промазавшие руки соперника (A10s, KQs, K10s, Q10s). Крупная ставка в 50%+ банка выбьет только руки слабее и изолирует тебя против валетов и карманок 77–1010! Лучшая линия — чек вдогонку (или микро-контбет 25–30% банка).`,
+            sizingNote: 'Чек вдогонку (пот-контроль и сохранение блефов).'
+          },
+          rangeMatrix: {
+            value: ['JJ', '66', 'AJs', 'KJs', 'QJs'],
+            medium: ['1010', '99', '88', '77', 'J10s'],
+            draws: [`A${s1}10${s1}`, `K${s1}Q${s1}`],
+            bluffs: ['AQs', 'A10s', 'KQs', 'Q10s']
+          }
+        },
+        {
+          name: 'Терн',
+          board: [`J${s3}`, `6${s1}`, `3${s4}`, `10${s1}`],
+          potBeforeAction: 16.5,
+          effectiveStack: Number((stack - 7.0).toFixed(1)),
+          villainLastActionBadge: 'Чек',
+          actionHistory: [
+            {
+              street: `Флоп [J${s3} 6${s1} 3${s4}]`,
+              text: `${villainPos} чек → Hero (BTN) чек вдогонку (Банк: 16.5 ББ)`
+            },
+            {
+              street: `Терн [10${s1}]`,
+              text: `Выходит 10${s1}, дающая нам натсовый гатшот + 6 аутов на оверкарты! ${villainPos} снова чекает.`
+            }
+          ],
+          villainActionText: `На терне 10${s1} соперник чекает во второй раз. У тебя гатшот на натсовый стрит + оверкарты.`,
+          toCall: 0,
+          minBet: 4.0,
+          gtoAction: {
+            type: 'check',
+            acceptableTypes: ['check', 'bet'],
+            optimalTags: ['pot_control', 'spr_icm_control'],
+            trapTags: ['trap_fold_worse'],
+            explanation:
+              'Карта 10 отлично подошла спектру колла соперника (1010, J10s, Q10s, K10s), зато нам дают бесплатно посмотреть ривер и реализовать свои 10 аутов на топ-пару и натсовый стрит!',
+            sizingNote: 'Бесплатный чек вдогонку для реализации эквити.'
+          },
+          rangeMatrix: {
+            value: ['JJ', '1010', 'J10s'],
+            medium: ['AJs', 'KJs', 'QJs', 'Q10s', '99', '88', '77'],
+            draws: [`K${s1}Q${s1}`, `Q${s1}9${s1}`],
+            bluffs: ['A9s']
+          }
+        },
+        {
+          name: 'Ривер',
+          board: [`J${s3}`, `6${s1}`, `3${s4}`, `10${s1}`, `2${s2}`],
+          potBeforeAction: 16.5,
+          effectiveStack: Number((stack - 7.0).toFixed(1)),
+          villainLastActionBadge: 'Бет 8.5 ББ',
+          actionHistory: [
+            {
+              street: `Терн [10${s1}]`,
+              text: `${villainPos} чек → Hero (BTN) чек вдогонку (Банк: 16.5 ББ)`
+            },
+            {
+              street: `Ривер [2${s2}]`,
+              text: `Все дро промазали. Соперник ставит 8.5 ББ (51% банка). У Hero в руке A${s1}!`
+            }
+          ],
+          villainActionText: `На бланковом ривере 2${s2} соперник ставит 8.5 ББ в банк 16.5 ББ. У тебя несовпавшие A${s1} ${kic}${s2}.`,
+          toCall: 8.5,
+          minRaise: 20.0,
+          gtoAction: {
+            type: 'fold',
+            acceptableTypes: ['fold'],
+            optimalTags: ['fold_behind', 'blockers_factor'],
+            trapTags: ['trap_pot_committed'],
+            explanation: `У тебя в руке туз масти флеш-дро (A${s1}), который блокирует главные промазавшие флеш-дро соперника! Значит, он ставит на тонкое вэлью с валетом (AJ, KJ, QJ) или десяткой, и ни блеф-кетч по туз-хай, ни превращение в блеф здесь не работают. Спокойный пас.`,
+            sizingNote: 'Дисциплинированный пас.'
+          },
+          rangeMatrix: {
+            value: ['AJs', 'KJs', 'QJs', 'J10s'],
+            medium: ['Q10s', '99', '88'],
+            draws: [],
+            bluffs: ['KQs']
+          }
+        }
+      ]
+    };
+  },
+
+  // 13. ОДНОМАСТНЫЕ ТУЗЫ-КОЛЕСО И ТОП-ТУЗЫ (A♠5♠ / A♥4♥ / A♦Q♦ — Баррелинг с натсовым флеш-дро)
+  ({ s1, s2, s3, s4, stack, mode, variant }) => {
+    const aceHands = [
+      { k: '5', f1: 'K', f2: '8', f3: '3', t: '4', r: '10', titleK: 'A5s' },
+      { k: '4', f1: 'Q', f2: '7', f3: '2', t: '3', r: '9', titleK: 'A4s' },
+      { k: 'Q', f1: 'K', f2: '10', f3: '4', t: 'J', r: '2', titleK: 'AQs' }
+    ];
+    const ah = aceHands[variant % aceHands.length];
+    const heroPos = 'CO';
+    const villainPos = 'BB';
+    return {
+      focusCategory: 'premium_aces',
+      mode,
+      title: `Одномастный Туз на CO: A${s1}${ah.k}${s1} против BB (Натс-флеш-дро и стрит)`,
+      blindsInfo: `${mode === 'headsup' ? 'Хэдз-ап' : '8-Max'} • Анте 1 ББ • Эфф. стек ${stack} ББ`,
+      effectiveStackStart: stack,
+      heroPos,
+      villainPos,
+      heroCards: [`A${s1}`, `${ah.k}${s1}`],
+      streets: [
+        {
+          name: 'Префлоп',
+          board: [],
+          potBeforeAction: 2.5,
+          effectiveStack: stack,
+          isPreflopRFI: true,
+          villainLastActionBadge: 'ББ 1 ББ • Ждет хода',
+          actionHistory: [
+            {
+              street: 'Префлоп',
+              text: 'Все игроки до CO сбросили. Первое слово за Hero на катоффе (CO).'
+            }
+          ],
+          villainActionText: `До тебя все сбросили. Твое слово на CO с одномастным тузом A${s1} ${ah.k}${s1}.`,
+          toCall: 1.0,
+          minBet: 2.0,
+          minRaise: 2.0,
+          gtoAction: {
+            type: 'raise',
+            acceptableTypes: ['bet', 'raise'],
+            minOptimalSize: 2.0,
+            maxOptimalSize: 2.5,
+            optimalTags: ['value_bet', 'blockers_factor'],
+            trapTags: ['fold_behind'],
+            explanation: `Одномастные тузы A${s1} ${ah.k}${s1} открываются 100% времени с CO: блокер на туза снижает вероятность 3-бета от соперников, а масть дает потенциал на натсовый флеш.`,
+            sizingNote: 'Стандартный опен-рейз 2.2 ББ.'
+          },
+          rangeMatrix: {
+            value: ['AA', 'KK', 'QQ', 'JJ', '1010', 'AKs', 'AQs', 'AJs'],
+            medium: ['99', '88', '77', 'A10s', 'A5s', 'A4s', 'KQs', 'KJs'],
+            draws: ['J10s', '109s', '98s', '87s'],
+            bluffs: ['A9o', 'K10o']
+          }
+        },
+        {
+          name: 'Флоп',
+          board: [`${ah.f1}${s1}`, `${ah.f2}${s2}`, `${ah.f3}${s1}`],
+          potBeforeAction: 5.9,
+          effectiveStack: Number((stack - 2.2).toFixed(1)),
+          villainLastActionBadge: 'Чек',
+          actionHistory: [
+            {
+              street: 'Префлоп',
+              text: 'Hero (CO) рейз 2.2 ББ → BTN и SB пас → BB колл (Банк: 5.9 ББ)'
+            },
+            {
+              street: `Флоп [${ah.f1}${s1} ${ah.f2}${s2} ${ah.f3}${s1}]`,
+              text: `BB чекает. У Hero натсовое флеш-дро ${s1}!`
+            }
+          ],
+          villainActionText: `На флопе ${ah.f1}${s1} ${ah.f2}${s2} ${ah.f3}${s1} соперник на BB чекает. У тебя натсовое флеш-дро.`,
+          toCall: 0,
+          minBet: 1.8,
+          gtoAction: {
+            type: 'bet',
+            acceptableTypes: ['bet'],
+            minOptimalSize: 1.8,
+            maxOptimalSize: 3.2,
+            optimalTags: ['semibluff_equity'],
+            trapTags: ['fold_behind'],
+            explanation:
+              'С натсовым флеш-дро (9 аутов на лучший флеш + 3 аута на туза) мы ставим контбет 33–50% банка, выбивая пустые руки BB и разгоняя банк под свои 12 чистых аутов.',
+            sizingNote: 'Контбет 2.0–2.8 ББ.'
+          },
+          rangeMatrix: {
+            value: [`${ah.f1}${ah.f1}`, `${ah.f2}${ah.f2}`, `K${ah.f2}s`],
+            medium: [`Q${ah.f1}o`, `J${ah.f1}s`, `A${ah.f2}o`, '99', '88', '66'],
+            draws: [`Q${s1}J${s1}`, `J${s1}9${s1}`, `9${s1}7${s1}`],
+            bluffs: ['QJo', 'J10o']
+          }
+        },
+        {
+          name: 'Терн',
+          board: [`${ah.f1}${s1}`, `${ah.f2}${s2}`, `${ah.f3}${s1}`, `${ah.t}${s3}`],
+          potBeforeAction: 10.7,
+          effectiveStack: Number((stack - 4.6).toFixed(1)),
+          villainLastActionBadge: 'Чек',
+          actionHistory: [
+            {
+              street: `Флоп [${ah.f1}${s1} ${ah.f2}${s2} ${ah.f3}${s1}]`,
+              text: 'BB чек → Hero (CO) бет 2.4 ББ → BB колл (Банк: 10.7 ББ)'
+            },
+            {
+              street: `Терн [${ah.t}${s3}]`,
+              text: 'У Hero к натсовому флеш-дро добавился стрит-аут (комбо-дро)! BB чекает.'
+            }
+          ],
+          villainActionText: `На терне ${ah.t}${s3} соперник на BB чекает в банке 10.7 ББ. У тебя натс-ФД + стрит-ауты.`,
+          toCall: 0,
+          minBet: 3.5,
+          gtoAction: {
+            type: 'bet',
+            acceptableTypes: ['bet', 'check'],
+            minOptimalSize: 6.0,
+            maxOptimalSize: 8.0,
+            optimalTags: ['semibluff_equity', 'spr_icm_control'],
+            trapTags: [],
+            explanation:
+              'Натсовое флеш-дро со стрит-аутами — лучший кандидат для плотного второго барреля 60–70% банка (6.5–7.5 ББ): мы выбиваем все слабые вторые/третьи пары BB и строим большой банк к риверу.',
+            sizingNote: 'Плотный второй баррель 6.5–7.5 ББ.'
+          },
+          rangeMatrix: {
+            value: [`${ah.f1}${ah.f1}`, `${ah.f2}${ah.f2}`, `K${ah.f2}s`],
+            medium: [`Q${ah.f1}o`, `J${ah.f1}s`, `A${ah.f2}o`],
+            draws: [`Q${s1}J${s1}`, `J${s1}9${s1}`],
+            bluffs: []
+          }
+        },
+        {
+          name: 'Ривер',
+          board: [`${ah.f1}${s1}`, `${ah.f2}${s2}`, `${ah.f3}${s1}`, `${ah.t}${s3}`, `${ah.r}${s1}`],
+          potBeforeAction: 24.7,
+          effectiveStack: Number((stack - 11.6).toFixed(1)),
+          villainLastActionBadge: 'Чек',
+          actionHistory: [
+            {
+              street: `Терн [${ah.t}${s3}]`,
+              text: 'BB чек → Hero (CO) бет 7.0 ББ → BB колл (Банк: 24.7 ББ)'
+            },
+            {
+              street: `Ривер [${ah.r}${s1}]`,
+              text: `Закрылся наш НАТСОВЫЙ ФЛЕШ на ${ah.r}${s1}! BB чекает.`
+            }
+          ],
+          villainActionText: `На ривере ${ah.r}${s1} закрылся твой натсовый флеш! BB чекает в банке 24.7 ББ.`,
+          toCall: 0,
+          minBet: 6.0,
+          gtoAction: {
+            type: 'bet',
+            acceptableTypes: ['bet'],
+            minOptimalSize: 14.0,
+            maxOptimalSize: Number((stack - 11.6).toFixed(1)),
+            optimalTags: ['value_bet', 'spr_icm_control'],
+            trapTags: ['pot_control'],
+            explanation:
+              'С натсовым флешем на ривере мы обязаны ставить крупно (70% банка или олл-ин): все младшие флеши (Q-хай, J-хай), сеты и две пары соперника никогда не выбросят и полностью оплатят наш стек!',
+            sizingNote: 'Доборный бет 16 ББ или олл-ин.'
+          },
+          rangeMatrix: {
+            value: [`Q${s1}J${s1}`, `J${s1}9${s1}`, `${ah.f1}${ah.f1}`, `${ah.f2}${ah.f2}`],
+            medium: [`Q${ah.f1}o`, `J${ah.f1}s`],
+            draws: [],
+            bluffs: []
+          }
+        }
+      ]
+    };
+  },
+
+  // 14. ОДНОМАСТНЫЙ БРОДВЕЙ K♠Q♠ / A♦J♦ (HJ vs BB — Сильная топ-пара на 4 улицах)
+  ({ s1, s2, s3, s4, stack, mode, variant }) => {
+    const bw =
+      variant % 2 === 0
+        ? { c1: 'K', c2: 'Q', f1: 'K', f2: '9', f3: '4', t: '2', r: '7' }
+        : { c1: 'A', c2: 'J', f1: 'A', f2: '8', f3: '3', t: '2', r: '6' };
+    const heroPos = mode === 'headsup' ? 'BTN' : 'HJ';
+    const villainPos = 'BB';
+    return {
+      focusCategory: 'pairs_broadway',
+      mode,
+      title: `Сильный бродвей ${bw.c1}${s1}${bw.c2}${s1} на ${heroPos}: Три улицы добора с топ-парой`,
+      blindsInfo: `${mode === 'headsup' ? 'Хэдз-ап' : '8-Max'} • Анте 1 ББ • Эфф. стек ${stack} ББ`,
+      effectiveStackStart: stack,
+      heroPos,
+      villainPos,
+      heroCards: [`${bw.c1}${s1}`, `${bw.c2}${s1}`],
+      streets: [
+        {
+          name: 'Префлоп',
+          board: [],
+          potBeforeAction: 2.5,
+          effectiveStack: stack,
+          isPreflopRFI: true,
+          villainLastActionBadge: 'ББ 1 ББ • Ждет хода',
+          actionHistory: [
+            {
+              street: 'Префлоп',
+              text: `Игроки до ${heroPos} сбросили. Первое слово за Hero с одномастным бродвеем ${bw.c1}${s1} ${bw.c2}${s1}.`
+            }
+          ],
+          villainActionText: `До тебя все сбросили. У тебя одномастный бродвей ${bw.c1}${s1} ${bw.c2}${s1} на ${heroPos}.`,
+          toCall: 1.0,
+          minBet: 2.0,
+          minRaise: 2.0,
+          gtoAction: {
+            type: 'raise',
+            acceptableTypes: ['bet', 'raise'],
+            minOptimalSize: 2.0,
+            maxOptimalSize: 2.5,
+            optimalTags: ['value_bet'],
+            trapTags: ['fold_behind'],
+            explanation: `Одномастные ${bw.c1}${bw.c2}s — одна из сильнейших стартовых рук, которая открывается рейзом 2.2 ББ с любой позиции.`,
+            sizingNote: 'Опен-рейз 2.2 ББ.'
+          },
+          rangeMatrix: {
+            value: ['AA', 'KK', 'QQ', 'JJ', '1010', 'AKs', 'AQs', 'AJs', 'KQs'],
+            medium: ['99', '88', '77', 'KJs', 'QJs', 'J10s'],
+            draws: ['109s', '98s'],
+            bluffs: ['A10o', 'KQo']
+          }
+        },
+        {
+          name: 'Флоп',
+          board: [`${bw.f1}${s2}`, `${bw.f2}${s1}`, `${bw.f3}${s3}`],
+          potBeforeAction: 5.9,
+          effectiveStack: Number((stack - 2.2).toFixed(1)),
+          villainLastActionBadge: 'Чек',
+          actionHistory: [
+            {
+              street: 'Префлоп',
+              text: `Hero (${heroPos}) рейз 2.2 ББ → BB коллирует (Банк: 5.9 ББ)`
+            },
+            {
+              street: `Флоп [${bw.f1}${s2} ${bw.f2}${s1} ${bw.f3}${s3}]`,
+              text: `BB чекает. У Hero топ-пара с отличным кикером + бэкдорное флеш-дро ${s1}.`
+            }
+          ],
+          villainActionText: `На флопе ${bw.f1}${s2} ${bw.f2}${s1} ${bw.f3}${s3} соперник на BB чекает. У тебя топ-пара ${bw.c1}${bw.c2}.`,
+          toCall: 0,
+          minBet: 1.8,
+          gtoAction: {
+            type: 'bet',
+            acceptableTypes: ['bet'],
+            minOptimalSize: 1.8,
+            maxOptimalSize: 3.2,
+            optimalTags: ['value_bet', 'dry_board'],
+            trapTags: ['pot_control'],
+            explanation: `С топ-парой и сильным кикером (${bw.c1}${bw.c2}) мы сразу начинаем собирать три улицы вэлью со всех слабых ${bw.f1}x (${bw.f1}10, ${bw.f1}7, ${bw.f1}5) и вторых пар Большого Блайнда.`,
+            sizingNote: 'Контбет на вэлью 2.0–2.8 ББ.'
+          },
+          rangeMatrix: {
+            value: [`${bw.f2}${bw.f2}`, `${bw.f3}${bw.f3}`, `${bw.f1}${bw.f2}s`],
+            medium: [`${bw.f1}10o`, `${bw.f1}8s`, `${bw.f1}7s`, `Q${bw.f2}s`, '77', '66'],
+            draws: ['QJs', 'J10s', '87s', '76s'],
+            bluffs: ['Q10o', 'J9s']
+          }
+        },
+        {
+          name: 'Терн',
+          board: [`${bw.f1}${s2}`, `${bw.f2}${s1}`, `${bw.f3}${s3}`, `${bw.t}${s1}`],
+          potBeforeAction: 10.3,
+          effectiveStack: Number((stack - 4.4).toFixed(1)),
+          villainLastActionBadge: 'Чек',
+          actionHistory: [
+            {
+              street: `Флоп [${bw.f1}${s2} ${bw.f2}${s1} ${bw.f3}${s3}]`,
+              text: `BB чек → Hero (${heroPos}) бет 2.2 ББ → BB колл (Банк: 10.3 ББ)`
+            },
+            {
+              street: `Терн [${bw.t}${s1}]`,
+              text: `У Hero к топ-паре добавилось еще и флеш-дро ${s1}! BB чекает.`
+            }
+          ],
+          villainActionText: `На терне ${bw.t}${s1} у тебя топ-пара + флеш-дро ${s1}. Соперник на BB чекает.`,
+          toCall: 0,
+          minBet: 3.5,
+          gtoAction: {
+            type: 'bet',
+            acceptableTypes: ['bet'],
+            minOptimalSize: 6.0,
+            maxOptimalSize: 8.5,
+            optimalTags: ['value_bet', 'spr_icm_control'],
+            trapTags: ['pot_control'],
+            explanation:
+              'На терне мы ставим плотный второй баррель 65–75% банка (6.8–7.8 ББ): мы добираем со всех слабых топ-пар, вторых пар и пошедших флеш-дро младше нашего!',
+            sizingNote: 'Плотный второй баррель 6.8–7.8 ББ.'
+          },
+          rangeMatrix: {
+            value: [`${bw.f2}${bw.f2}`, `${bw.f3}${bw.f3}`, `${bw.f1}${bw.f2}s`],
+            medium: [`${bw.f1}10o`, `${bw.f1}7s`, `${bw.f1}6s`, `Q${bw.f2}s`],
+            draws: [`Q${s1}J${s1}`, `J${s1}10${s1}`, `10${s1}8${s1}`],
+            bluffs: []
+          }
+        },
+        {
+          name: 'Ривер',
+          board: [`${bw.f1}${s2}`, `${bw.f2}${s1}`, `${bw.f3}${s3}`, `${bw.t}${s1}`, `${bw.r}${s4}`],
+          potBeforeAction: 24.7,
+          effectiveStack: Number((stack - 11.6).toFixed(1)),
+          villainLastActionBadge: 'Чек',
+          actionHistory: [
+            {
+              street: `Терн [${bw.t}${s1}]`,
+              text: `BB чек → Hero (${heroPos}) бет 7.2 ББ → BB колл (Банк: 24.7 ББ)`
+            },
+            {
+              street: `Ривер [${bw.r}${s4}]`,
+              text: 'Все дро промазали на бланковом ривере. BB чекает.'
+            }
+          ],
+          villainActionText: `На бланковом ривере ${bw.r}${s4} соперник на BB чекает в банке 24.7 ББ. У тебя топ-пара с отличным кикером.`,
+          toCall: 0,
+          minBet: 6.0,
+          gtoAction: {
+            type: 'bet',
+            acceptableTypes: ['bet'],
+            minOptimalSize: 11.0,
+            maxOptimalSize: 16.5,
+            optimalTags: ['value_bet'],
+            trapTags: ['pot_control'],
+            explanation: `Классический третий баррель на вэлью (~50–65% банка): все дро промазали, поэтому соперник на BB очень часто вскроет нас с любой слабой топ-парой (${bw.f1}10, ${bw.f1}8, ${bw.f1}6), положив нас на недоехавшее флеш-дро!`,
+            sizingNote: 'Добор на ривере 12–15 ББ.'
+          },
+          rangeMatrix: {
+            value: [`${bw.f2}${bw.f2}`, `${bw.f1}${bw.f2}s`],
+            medium: [`${bw.f1}10o`, `${bw.f1}8s`, `${bw.f1}7s`, `${bw.f1}6s`],
+            draws: [],
+            bluffs: [`Q${s1}J${s1}`]
+          }
+        }
+      ]
+    };
   }
 ];
 
@@ -1939,6 +2598,214 @@ function generateInstantProceduralScenario(targetMode = 'chipev_8max', focusFilt
     id: newId
   };
 }
+
+// Стартовая база 4-уличных сценариев для всех 3 режимов стола
+const SCENARIOS = [
+  {
+    ...PROCEDURAL_BLUEPRINTS[10]({
+      s1: '♠',
+      s2: '♥',
+      s3: '♦',
+      s4: '♣',
+      stack: 38,
+      mode: 'chipev_8max',
+      variant: 0
+    }),
+    id: 'full_prem_qq'
+  },
+  {
+    ...PROCEDURAL_BLUEPRINTS[11]({
+      s1: '♠',
+      s2: '♦',
+      s3: '♥',
+      s4: '♣',
+      stack: 45,
+      mode: 'chipev_8max',
+      variant: 1
+    }),
+    id: 'full_ak_3bet'
+  },
+  {
+    ...PROCEDURAL_BLUEPRINTS[12]({
+      s1: '♠',
+      s2: '♥',
+      s3: '♦',
+      s4: '♣',
+      stack: 36,
+      mode: 'chipev_8max',
+      variant: 0
+    }),
+    id: 'full_a5s_nfd'
+  },
+  {
+    ...PROCEDURAL_BLUEPRINTS[13]({
+      s1: '♠',
+      s2: '♦',
+      s3: '♣',
+      s4: '♥',
+      stack: 40,
+      mode: 'chipev_8max',
+      variant: 0
+    }),
+    id: 'full_kqs_value'
+  },
+  {
+    ...PROCEDURAL_BLUEPRINTS[0]({
+      s1: '♠',
+      s2: '♥',
+      s3: '♦',
+      s4: '♣',
+      stack: 35,
+      mode: 'chipev_8max',
+      variant: 0
+    }),
+    id: 'full_1'
+  },
+  {
+    ...PROCEDURAL_BLUEPRINTS[1]({
+      s1: '♥',
+      s2: '♠',
+      s3: '♦',
+      s4: '♣',
+      stack: 32,
+      mode: 'chipev_8max',
+      variant: 0
+    }),
+    id: 'full_2'
+  },
+  {
+    ...PROCEDURAL_BLUEPRINTS[2]({
+      s1: '♦',
+      s2: '♠',
+      s3: '♣',
+      s4: '♥',
+      stack: 38,
+      mode: 'chipev_8max',
+      variant: 1
+    }),
+    id: 'full_3'
+  },
+  {
+    ...PROCEDURAL_BLUEPRINTS[3]({
+      s1: '♠',
+      s2: '♦',
+      s3: '♣',
+      s4: '♥',
+      stack: 40,
+      mode: 'chipev_8max',
+      variant: 0
+    }),
+    id: 'full_4'
+  },
+  {
+    ...PROCEDURAL_BLUEPRINTS[4]({
+      s1: '♣',
+      s2: '♥',
+      s3: '♠',
+      s4: '♦',
+      stack: 35,
+      mode: 'chipev_8max',
+      variant: 0
+    }),
+    id: 'full_5'
+  },
+  {
+    ...PROCEDURAL_BLUEPRINTS[5]({
+      s1: '♠',
+      s2: '♥',
+      s3: '♣',
+      s4: '♦',
+      stack: 36,
+      mode: 'chipev_8max',
+      variant: 0
+    }),
+    id: 'full_6'
+  },
+  {
+    ...PROCEDURAL_BLUEPRINTS[6]({
+      s1: '♣',
+      s2: '♠',
+      s3: '♦',
+      s4: '♥',
+      stack: 35,
+      mode: 'chipev_8max',
+      variant: 0
+    }),
+    id: 'full_7'
+  },
+  {
+    ...PROCEDURAL_BLUEPRINTS[7]({
+      s1: '♠',
+      s2: '♦',
+      s3: '♥',
+      s4: '♣',
+      stack: 42,
+      mode: 'chipev_8max',
+      variant: 0
+    }),
+    id: 'full_8'
+  },
+  {
+    ...PROCEDURAL_BLUEPRINTS[8]({
+      s1: '♠',
+      s2: '♥',
+      s3: '♦',
+      s4: '♣',
+      stack: 30,
+      mode: 'bubble_icm',
+      variant: 0
+    }),
+    id: 'icm_full_1'
+  },
+  {
+    ...PROCEDURAL_BLUEPRINTS[9]({
+      s1: '♠',
+      s2: '♦',
+      s3: '♣',
+      s4: '♥',
+      stack: 35,
+      mode: 'bubble_icm',
+      variant: 0
+    }),
+    id: 'icm_full_2'
+  },
+  {
+    ...PROCEDURAL_BLUEPRINTS[11]({
+      s1: '♥',
+      s2: '♠',
+      s3: '♦',
+      s4: '♣',
+      stack: 35,
+      mode: 'headsup',
+      variant: 0
+    }),
+    id: 'hu_full_aq'
+  },
+  {
+    ...PROCEDURAL_BLUEPRINTS[0]({
+      s1: '♥',
+      s2: '♠',
+      s3: '♣',
+      s4: '♦',
+      stack: 35,
+      mode: 'headsup',
+      variant: 1
+    }),
+    id: 'hu_full_1'
+  },
+  {
+    ...PROCEDURAL_BLUEPRINTS[2]({
+      s1: '♠',
+      s2: '♥',
+      s3: '♦',
+      s4: '♣',
+      stack: 35,
+      mode: 'headsup',
+      variant: 0
+    }),
+    id: 'hu_full_2'
+  }
+];
 
 // ============================================================================
 // САНИТАЙЗЕР ИИ-СЦЕНАРИЯ (ИСПРАВЛЯЕТ МАСТИ 'Ah'->'A♥', БАНК 1.5->2.5 ББ И ПОЗИЦИИ)
@@ -2743,6 +3610,24 @@ export default function App() {
     const futurePot = displayPotOnTable + betSliderValue * 2;
     return futurePot > 0 ? Math.round((remaining / futurePot) * 100) / 100 : 0;
   }, [displayPotOnTable, currentStreet.effectiveStack, betSliderValue]);
+
+  const orderedSeats = useMemo(
+    () => buildOrderedTableSeats(currentScenario, currentStreet),
+    [currentScenario, currentStreet]
+  );
+
+  const averageScore = useMemo(() => {
+    if (sessionHistory.length === 0) return null;
+    const sum = sessionHistory.reduce((acc, item) => acc + (Number(item.score) || 0), 0);
+    return (sum / sessionHistory.length).toFixed(1);
+  }, [sessionHistory]);
+
+  const mistakesHistory = useMemo(
+    () => sessionHistory.filter(item => Number(item.score) < 7.5),
+    [sessionHistory]
+  );
+
+  const handleToggleTag = tagId => {
     setSelectedTags(prev =>
       prev.includes(tagId) ? prev.filter(id => id !== tagId) : [...prev, tagId]
     );
@@ -2800,30 +3685,51 @@ ${
       }
     } catch {
       setAiAnalysis(
-        'Встроенный разбор GTO уже выведен выше. (Для живого диалога с ИИ на внешнем сайте проверь API-ключ и VPN).'
+        'Локальный разбор GTO: ' +
+          currentStreet.gtoAction.explanation +
+          ' (Для живого ответа ИИ на отдельном сайте укажи свой ключ по кнопке «API Ключ» в шапке).'
       );
     } finally {
       setIsAiLoading(false);
     }
   };
 
-  // Отправка хода игрока и сохранение в постоянный журнал
+  // Отправка хода игрока и мгновенное сохранение в историю (localStorage)
   const submitPokerAction = (actionType, sizeValue = 0) => {
-    const finalSize =
-      actionType === 'bet' || actionType === 'raise'
-        ? sizeValue
-        : actionType === 'call'
-        ? effectiveToCall
-        : 0;
-
-    const streetForEval = isPreflopRFI
-      ? { ...currentStreet, isPreflopRFI: true, potBeforeAction: 2.5 }
-      : currentStreet;
-
-    const result = evaluateDecision(streetForEval, actionType, finalSize, selectedTags);
+    const result = evaluateDecision(currentStreet, actionType, sizeValue, selectedTags);
     setEvaluation(result);
     setShowSizingDrawer(false);
-  // МГНОВЕННАЯ генерация новой 4-уличной раздачи (< 0.02 сек, 18 архетипов без повторов)
+
+    const historyEntryId = `${currentScenario.id}_${streetIndex}_${Date.now()}`;
+    const newEntry = {
+      id: historyEntryId,
+      timestamp: new Date().toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' }),
+      scenarioId: currentScenario.id,
+      scenarioTitle: currentScenario.title,
+      mode: currentScenario.mode,
+      streetIndex,
+      streetName: currentStreet.name,
+      heroPos: currentScenario.heroPos,
+      villainPos: currentScenario.villainPos,
+      heroCards: currentScenario.heroCards,
+      board: currentStreet.board,
+      chosenAction: actionType,
+      chosenSize: sizeValue,
+      gtoType: currentStreet.gtoAction.type,
+      gtoSizingNote: currentStreet.gtoAction.sizingNote,
+      score: result.totalScore,
+      explanation: currentStreet.gtoAction.explanation,
+      scenarioSnapshot: currentScenario
+    };
+
+    setSessionHistory(prev => [newEntry, ...prev]);
+
+    if (customReasoning.trim().length > 0) {
+      requestAiCoachAnalysis(result, '', historyEntryId);
+    }
+  };
+
+  // МГНОВЕННАЯ генерация новой 4-уличной раздачи (< 0.02 сек, 14 архетипов без повторов)
   const handleInstantNewHand = () => {
     const newScenario = generateInstantProceduralScenario(selectedMode, trainingFocus);
     setCustomScenarios(prev => [newScenario, ...prev]);
@@ -2834,12 +3740,94 @@ ${
     setTimeout(() => setStatusBanner(''), 3000);
   };
 
-  // Генерация через ИИ с принудительной инъекцией разнообразных рук БЕЗ ТУЗОВ
+  // Генерация через ИИ со сбалансированным пулом (Премиум QQ-AA + Сильные тузы AK/AQ/A5s + Бродвей KQ + Коннекторы + Блефы)
   const handleGenerateAiScenario = async () => {
     setIsGeneratingScenario(true);
 
-    // Пул разнообразных стартовых рук и тактических сценариев (88% БЕЗ ТУЗА!)
     const diverseSeeds = [
+      // Премиум пары и Сильные тузы
+      {
+        heroPos: 'BTN',
+        villainPos: 'LJ',
+        heroCards: ['Q♠', 'Q♥'],
+        stack: 40,
+        themeTitle: 'Карманные дамы Q♠Q♥ в 3-бет банке: игра по выходу опасного терна',
+        focus: 'premium_aces'
+      },
+      {
+        heroPos: 'CO',
+        villainPos: 'BTN',
+        heroCards: ['K♦', 'K♣'],
+        stack: 38,
+        themeTitle: 'Карманные короли K♦K♣ без позиции: 3-бет банк и контроль SPR',
+        focus: 'premium_aces'
+      },
+      {
+        heroPos: 'BTN',
+        villainPos: 'CO',
+        heroCards: ['A♠', 'K♦'],
+        stack: 42,
+        themeTitle: 'Разномастные A♠K♦ в 3-бет банке: розыгрыш на 4 улицах',
+        focus: 'premium_aces'
+      },
+      {
+        heroPos: 'CO',
+        villainPos: 'BB',
+        heroCards: ['A♥', 'Q♣'],
+        stack: 36,
+        themeTitle: 'Сильный туз A♥Q♣ против защиты BB: пот-контроль и блокеры',
+        focus: 'premium_aces'
+      },
+      {
+        heroPos: 'CO',
+        villainPos: 'BTN',
+        heroCards: ['A♠', '5♠'],
+        stack: 35,
+        themeTitle: 'Одномастный туз-колесо A♠5♠: полублеф с натсовым флеш-дро',
+        focus: 'premium_aces'
+      },
+      {
+        heroPos: 'HJ',
+        villainPos: 'BB',
+        heroCards: ['A♦', 'A♣'],
+        stack: 45,
+        themeTitle: 'Карманные тузы A♦A♣ на скоординированной доске: добор и защита',
+        focus: 'premium_aces'
+      },
+      // Бродвей и средние пары
+      {
+        heroPos: 'HJ',
+        villainPos: 'BB',
+        heroCards: ['K♠', 'Q♠'],
+        stack: 38,
+        themeTitle: 'Одномастный бродвей K♠Q♠: три улицы добора с топ-парой',
+        focus: 'pairs_broadway'
+      },
+      {
+        heroPos: 'LJ',
+        villainPos: 'BTN',
+        heroCards: ['K♠', 'Q♦'],
+        stack: 40,
+        themeTitle: 'Игра без позиции (LJ vs BTN) с K♠Q♦ под давлением',
+        focus: 'pairs_broadway'
+      },
+      {
+        heroPos: 'HJ',
+        villainPos: 'BB',
+        heroCards: ['10♠', '10♦'],
+        stack: 35,
+        themeTitle: 'Карманные десятки 10♠10♦: пот-контроль при выходе оверкарты',
+        focus: 'pairs_broadway'
+      },
+      {
+        heroPos: 'BB',
+        villainPos: 'CO',
+        heroCards: ['6♠', '6♥'],
+        stack: 34,
+        themeTitle: 'Карманная пара 6♠6♥ на BB: защита спектра и доезд в сет',
+        focus: 'pairs_broadway'
+      },
+      // Коннекторы и гапперы
       {
         heroPos: 'BTN',
         villainPos: 'BB',
@@ -2848,6 +3836,23 @@ ${
         themeTitle: 'Коннекторы 8♠7♠ на баттоне: флоат и давление на терне',
         focus: 'connectors'
       },
+      {
+        heroPos: 'CO',
+        villainPos: 'BB',
+        heroCards: ['J♣', '9♣'],
+        stack: 36,
+        themeTitle: 'Одномастный гаппер J♣9♣ на CO: розыгрыш двусторонки на 4 улицах',
+        focus: 'connectors'
+      },
+      {
+        heroPos: 'BTN',
+        villainPos: 'HJ',
+        heroCards: ['6♣', '5♣'],
+        stack: 42,
+        themeTitle: 'Полярный 3-бет с коннектором 6♣5♣ в позиции',
+        focus: 'connectors'
+      },
+      // Блеф и слабая позиция
       {
         heroPos: 'SB',
         villainPos: 'BB',
@@ -2863,46 +3868,6 @@ ${
         stack: 38,
         themeTitle: 'Защита BB с гаппером 7♦5♦: чек-рейз в полублеф на низком борде',
         focus: 'bluff_oop'
-      },
-      {
-        heroPos: 'CO',
-        villainPos: 'BB',
-        heroCards: ['J♣', '9♣'],
-        stack: 36,
-        themeTitle: 'Одномастный гаппер J♣9♣ на CO: розыгрыш двусторонки на 4 улицах',
-        focus: 'connectors'
-      },
-      {
-        heroPos: 'LJ',
-        villainPos: 'BTN',
-        heroCards: ['K♠', 'Q♦'],
-        stack: 40,
-        themeTitle: 'Игра без позиции (LJ vs BTN) с K♠Q♦ под давлением',
-        focus: 'bluff_oop'
-      },
-      {
-        heroPos: 'BB',
-        villainPos: 'CO',
-        heroCards: ['6♠', '6♥'],
-        stack: 34,
-        themeTitle: 'Карманная пара 6♠6♥ на BB: защита спектра и доезд в сет',
-        focus: 'pairs_broadway'
-      },
-      {
-        heroPos: 'BTN',
-        villainPos: 'HJ',
-        heroCards: ['6♣', '5♣'],
-        stack: 42,
-        themeTitle: 'Полярный 3-бет с коннектором 6♣5♣ в позиции',
-        focus: 'connectors'
-      },
-      {
-        heroPos: 'HJ',
-        villainPos: 'BB',
-        heroCards: ['10♠', '10♦'],
-        stack: 35,
-        themeTitle: 'Карманные десятки 10♠10♦: пот-контроль при выходе оверкарты',
-        focus: 'pairs_broadway'
       },
       {
         heroPos: 'BB',
@@ -2932,10 +3897,10 @@ ${
 ОБЯЗАТЕЛЬНЫЕ ВВОДНЫЕ (НЕ МЕНЯЙ ИХ):
 - Позиция Hero: "${chosenSeed.heroPos}"
 - Позиция Оппонента: "${chosenSeed.villainPos}"
-- Карты Hero: ${JSON.stringify(chosenSeed.heroCards)} (ЗАПРЕЩЕНО менять на тузов!)
+- Карты Hero: ${JSON.stringify(chosenSeed.heroCards)}
 - Тема раздачи: "${chosenSeed.themeTitle}"
 - Эффективный стек: ${chosenSeed.stack} ББ, Анте 1 ББ.
-- Масти пиши ТОЛЬКО символами ♠, ♥, ♦, ♣ (например "8♠", "10♥", "Q♦"). Десятку пиши как "10".
+- Масти пиши ТОЛЬКО символами ♠, ♥, ♦, ♣ (например "A♠", "10♥", "Q♦"). Десятку пиши как "10".
 - На Префлопе если Hero открывает первым, potBeforeAction = 2.5, isPreflopRFI = true.
 Верни чистый JSON: title, blindsInfo, effectiveStackStart, heroPos, villainPos, heroCards, streets (массив из 4 улиц: name, board, potBeforeAction, effectiveStack, toCall, minRaise, isPreflopRFI, villainLastActionBadge, villainActionText, actionHistory [{street, text}], gtoAction {type, acceptableTypes, minOptimalSize, maxOptimalSize, optimalTags, trapTags, explanation, sizingNote}).`;
 
@@ -3521,12 +4486,6 @@ ${
               </div>
             )}
 
-            {/* КНОПКИ ДЕЙСТВИЙ ПОКЕР-РУМА (ИСПРАВЛЕНЫ ДЛЯ ПРЕФЛОП-ОТКРЫТИЯ И ПОСТФЛОПА) */}
-            <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-0.5">
-              {/* 1. Кнопка ПАС (активна и при открытии на префлопе, и против ставки!) */}
-              <button
-                onClick={() => submitPokerAction('fold', 0)}
-                disabled={!isPreflopRFI && currentStreet.toCall === 0}
             {/* КНОПКИ ДЕЙСТВИЙ ПОКЕР-РУМА (ВСЕ 3 КЛАССИЧЕСКИЕ КНОПКИ ДОСТУПНЫ ВСЕГДА!) */}
             <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-0.5">
               {/* 1. Кнопка ПАС (Fold) */}
